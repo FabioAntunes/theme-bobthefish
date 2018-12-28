@@ -658,6 +658,37 @@ function __bobthefish_prompt_k8s_context -S -d 'Show current Kubernetes context'
     echo -ns $segment " "
 end
 
+function __bobthefish_run_kubectl
+  eval (string escape -- (type -fP kubectl) config view -o=jsonpath="{$argv}")
+end
+
+function __bobthefish_prompt_k8s_namespace -S -d 'Show current Kubernetes namespace'
+  [ "$theme_display_k8s_namespace" = 'yes' ]; or return
+  [ -n "$BOB_KUBE_LAST_TIME" ]; or set -gx BOB_KUBE_LAST_TIME 0
+  if [ (date -r ~/.kube/config +%s) -gt $BOB_KUBE_LAST_TIME -o -z "$BOB_KUBE_CURRENT_NS" -o -z "$BOB_KUBE_CURRENT_CTX" ]
+    set -gx BOB_KUBE_LAST_TIME (date +%s)
+    set -gx BOB_KUBE_CURRENT_CTX (__bobthefish_run_kubectl ' .current-context')
+    set -gx BOB_KUBE_CURRENT_NS (__bobthefish_run_kubectl ".contexts[?(@.name==\"$BOB_KUBE_CURRENT_CTX\")].context.namespace")
+  end
+
+  set -l ctx_color $color_k8s_ctx
+  set -l ctx_symbol_color purple
+  [ "$BOB_KUBE_CURRENT_CTX" = 'production' -o "$BOB_KUBE_CURRENT_CTX" = 'prod' ]
+    and set -l ctx_color $color_k8s_ctx_prod
+  [ "$BOB_KUBE_CURRENT_CTX" = 'production' -o "$BOB_KUBE_CURRENT_CTX" = 'prod' ]
+    and set -l ctx_symbol_color black
+
+  __bobthefish_start_segment $ctx_color
+  set_color $ctx_symbol_color
+  echo -ns \u2388 ' '
+  set_color black
+  echo -ns $BOB_KUBE_CURRENT_CTX ' '
+  __bobthefish_start_segment $ctx_color
+  echo -ns $BOB_KUBE_CURRENT_NS  ' '
+  return
+end
+
+
 
 # ==============================
 # User / hostname info segments
@@ -1080,6 +1111,7 @@ function fish_prompt -d 'bobthefish, a fish theme optimized for awesome'
     __bobthefish_prompt_vagrant
     __bobthefish_prompt_docker
     __bobthefish_prompt_k8s_context
+  __bobthefish_prompt_k8s_namespace
 
     # Virtual environments
     __bobthefish_prompt_desk
